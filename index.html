@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AR.js + Three.js Group</title>
+
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+
+  <body>
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false;"
+      renderer="logarithmicDepthBuffer: true;"
+    >
+      <a-marker type="pattern" url="pattern.patt">
+        <a-entity id="group-container" position="0 0 0" scale="0.5 0.5 0.5"></a-entity>
+      </a-marker>
+
+      <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+      /**
+ * 指定テキストのキャンバステクスチャを作成し、看板用のマテリアルに使用する
+ * @param {string} text - 看板に表示するテキスト
+ * @returns {THREE.CanvasTexture} キャンバスから生成したテクスチャ
+ */
+function createSignTexture(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+
+  // 背景色 - 薄いクリーム色
+  ctx.fillStyle = '#fff8dc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 文字スタイル設定（メイリオ・ボールド・48px）
+  ctx.font = 'bold 48px "メイリオ", sans-serif';
+  ctx.fillStyle = '#222222'; // 文字色（濃いグレー）
+  ctx.textBaseline = 'middle';
+
+  const paddingX = 40;
+  const x = paddingX + (canvas.width - paddingX * 2) / 2;
+
+  ctx.textAlign = 'center';
+  ctx.fillText(text, x, canvas.height / 2);
+
+  // CanvasTexture化してThree.jsで利用可能にする
+  return new THREE.CanvasTexture(canvas);
+}
+
+/**
+ * ペンギンの両足をまとめて生成します。
+ *
+ * @param {THREE.BufferGeometry} geometry - 円錐ジオメトリ（指の形）
+ * @param {THREE.Material} material - オレンジ色マテリアル
+ * @param {number} spreadX - 足の横方向の開き距離（±で振り分け）
+ * @returns {THREE.Group} 両足（左・右）を含んだグループ
+ */
+ function createFeet(geometry, material, spreadX = 0.4) {
+  const group = new THREE.Group();
+
+  // 円錐の高さと底面半径を取得（geometry.parametersにあるはず）
+  const { radius, height } = geometry.parameters;
+
+  // 円錐の母線角度（r/hのアークタンジェント）
+  const slopeAngle = Math.atan(radius / height);
+
+  const positions = [
+    { baseX: -spreadX }, // 左足
+    { baseX: spreadX }  // 右足
+  ];
+
+  for (const { baseX } of positions) {
+    const footGroup = new THREE.Group();
+
+    // 中央
+    const center = new THREE.Mesh(geometry, material);
+    center.scale.set(1.0, 2.6, 0.6);
+    center.rotation.x = Math.PI / 2 + Math.atan((radius * center.scale.x) / (height * center.scale.y));
+
+    footGroup.add(center);
+
+    // 左指
+    const left = center.clone();
+    left.scale.y = 2.2;
+    left.position.x = -0.1;
+    left.rotation.z = 0.25;
+    left.rotation.x = Math.PI / 2 + Math.atan((radius * left.scale.x) / (height * left.scale.y));
+    footGroup.add(left);
+
+    // 右指
+    const right = left.clone();
+    right.position.x *= -1;
+    right.rotation.z *= -1;
+    footGroup.add(right);
+
+    footGroup.position.set(baseX, -1.4, 0.4);
+    group.add(footGroup);
+  }
+
+  return group;
+}
+
+
+function createEyes(params = {}) {
+  const group = new THREE.Group();
+
+  // マテリアル類（黒目と白目）
+  const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
+  const scleraMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
+  const irisMat = blackMat;
+
+  // ジオメトリ
+  const eyeBlackGeom = new THREE.SphereGeometry(0.07, 16, 16);
+  const eyeWhiteGeom = new THREE.SphereGeometry(0.03, 16, 16);
+
+  // 右目白目
+  const scleraRight = new THREE.Mesh(eyeBlackGeom, scleraMat);
+  scleraRight.position.set(-0.18, 1.2, 0.55);
+  group.add(scleraRight);
+
+  // 右黒目
+  const irisRight = new THREE.Mesh(eyeBlackGeom, irisMat);
+  irisRight.position.set(-0.18002, 1.201, 0.5508);
+  irisRight.scale.set(0.97, 0.975, 1);
+  group.add(irisRight);
+
+  // 左目白目（右目白目をコピーしてX反転）
+  const scleraLeft = scleraRight.clone();
+  scleraLeft.position.x *= -1;
+  group.add(scleraLeft);
+
+  // 左目黒目（右黒目をコピーしてX反転）
+  const irisLeft = irisRight.clone();
+  irisLeft.position.x *= -1;
+  group.add(irisLeft);
+
+  return group;
+}
+
+
+
+
+
+/**
+ * ペンギンの3Dモデルを作成して返す
+ * アニメチックに見えるよう形状・色味・サイズを調整
+ * @returns {THREE.Group} ペンギングループメッシュ
+ */
+function createPenguin() {
+  const group = new THREE.Group();
+
+  // マテリアル定義 - 光沢控えめで柔らかいアニメ風
+  const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
+  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.0 });
+  const orangeMat = new THREE.MeshStandardMaterial({ color: 0xffa500, roughness: 0.5, metalness: 0.1 });
+
+  // 胴体 - 少し縦長の楕円球
+  const bodyGeom = new THREE.SphereGeometry(1, 48, 32);
+  const body = new THREE.Mesh(bodyGeom, blackMat);
+  body.scale.set(1.1, 1.5, 0.9);
+  group.add(body);
+
+  // お腹 - 大きくて丸い楕円球（白）
+  const bellyGeom = new THREE.SphereGeometry(0.7, 48, 32);
+  const belly = new THREE.Mesh(bellyGeom, whiteMat);
+  belly.position.set(0, -0.1, 0.45);
+  belly.scale.set(1.0, 1.45, 0.95);
+  group.add(belly);
+
+  // 頭 - 大きめの黒い球体（非表示になっているが残す）
+  const headGeom = new THREE.SphereGeometry(0.55, 48, 32);
+  const head = new THREE.Mesh(headGeom, blackMat);
+  head.position.set(0, 1.1, 0);
+  // group.add(head); // コメントアウトされている
+
+  // 顔の白い部分 - 丸く広めの球体（こちらも非表示）
+  const faceGeom = new THREE.SphereGeometry(0.35, 48, 32);
+  const face = new THREE.Mesh(faceGeom, whiteMat);
+  face.position.set(0, 1.15, 0.45);
+  // group.add(face); // コメントアウトされている
+
+  // くちばし - 丸みのある円錐形、前方に配置
+  const beakGeom = new THREE.ConeGeometry(0.13, 0.35, 16);
+  const beak = new THREE.Mesh(beakGeom, orangeMat);
+  beak.position.set(0, 0.95, 0.8);
+  beak.rotation.x = Math.PI / 1.8; // 前向きに回転
+  // 横に扁平化（X方向拡大、Y方向縮小）// 横と奥行きを調整して先端も扁平にする
+  beak.scale.set(2.0, 0.7, 0.9); // X=横幅広げる、Y=縦方向縮める、Z=奥行き縮める
+  group.add(beak);
+
+  const eyes = createEyes();
+  group.add(eyes);
+  group.eyes = eyes;
+
+  // 翼 - 丸みがあり太めにして可愛く表現
+  const wingGeom = new THREE.SphereGeometry(0.5, 16, 16);
+  const wingLeft = new THREE.Mesh(wingGeom, blackMat);
+  wingLeft.scale.set(0.5, 1.8, 0.15);
+  wingLeft.position.set(-1.05, 1.3, 0.4);
+  wingLeft.rotation.z = Math.PI / 10;
+  group.add(wingLeft);
+
+  const wingRight = wingLeft.clone();
+  wingRight.position.x = 1.05;
+  wingRight.rotation.z = -Math.PI / 10;
+  group.add(wingRight);
+
+  // 足 - 短くて太い三角錐形、上下逆さまにしてアニメ調に
+  const footGeom = new THREE.ConeGeometry(0.13, 0.35, 16);
+
+  const feet = createFeet(footGeom, orangeMat, 0.4); // ← 開き具合は spreadX（±0.4）
+  group.add(feet);
+
+  const signTex = createSignTexture("来てくれてありがとね❤️");
+  const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
+  const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
+  sign = new THREE.Mesh(signGeom, signMat);
+  sign.position.set(0, 2.5, 0.48);
+  group.add(sign);
+
+
+  return group;
+}
+
+      const group = createPenguin();
+
+      // A-Frameのエンティティにグループを追加
+      const entity = document.querySelector('#group-container');
+      entity.object3D.add(group);
+
+      // アニメーション
+      const clock = new THREE.Clock();
+      function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // グループの移動
+  group.position.x = Math.sin(t * 0.4) * 1.5 + Math.sin(t * 1.8) * 0.25 + Math.sin(t * 3.2) * 0.1;
+  group.position.y = 1.0 + Math.sin(t * 2.0) * 0.06 + Math.sin(t * 5.0) * 0.02;
+
+  // 向きベクトルの計算
+  let dx = Math.cos(t * 0.4) + Math.cos(t * 1.8) * 0.2 + Math.cos(t * 3.2) * 0.1;
+  let dz = 1.0; // 基準前方
+
+  group.rotation.y = Math.atan2(dx, dz);
+
+  // ヨタヨタ揺れ
+  group.rotation.z = Math.sin(t * 4) * 0.04;
+}
+
+      animate();
+    </script>
+  </body>
+</html>
