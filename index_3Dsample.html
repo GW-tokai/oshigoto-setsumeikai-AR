@@ -21,7 +21,7 @@ let scene, camera, renderer;  // シーン・カメラ・レンダラーのメ�
 let penguin, sign;             // ペンギンメッシュと看板メッシュ
 let clock = new THREE.Clock(); // 時間計測用クロック
 
-//丹羽 追加箇所
+//ジャンプ実装　追加箇所(丹羽)
 let velocityY = 0.05;
 let gravity = -0.004;
 let isJumping = false;
@@ -314,7 +314,7 @@ function animate() {
   // ヨタヨタ揺れ
   penguin.rotation.z = Math.sin(t * 4) * 0.04;
 
-  //ここから　ジャンプ実装部分
+  //ここから　ジャンプ実装部分(丹羽)
   const center = penguin.position.clone().project(camera);
 
   if(0 < center.x && center.x < 0.05 && !isJumping)
