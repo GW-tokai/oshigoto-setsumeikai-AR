@@ -1,1 +1,8 @@
-# oshigoto-setsumeikai-AR
+oshigoto-setsumeikai-ARのk-kataoka95のブランチです。
+ペンギンのアニメーションを加工予定です。
+
+#1 8/4
+ペンギンを常時ジャンプし続けられるように修正
+
+#1 8/1
+ペンギンのジャンプを実装
