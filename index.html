@@ -447,13 +447,6 @@
         group.add(feet);
         group.feet = feet; // 足の参照を保持
 
-        const signTex = createSignTexture("来てくれてありがとね❤️");
-        const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
-        const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
-        sign = new THREE.Mesh(signGeom, signMat);
-        sign.position.set(0, 2.5, 0.48);
-        group.add(sign);
-
         return group;
       }
 
