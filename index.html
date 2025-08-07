@@ -2,7 +2,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="theme-color" content="#c7e5f6">
 
     <title>AR.js + Three.js Group</title>
 
@@ -15,6 +16,23 @@
         margin: 0;
         overflow: hidden;
       }
+      canvas { display: block; }
+      #secretMessage {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;  /* 中央揃え */
+        width: auto;
+        font-size: 24px;
+        font-weight: bold;
+        color: red;
+        background: rgba(242, 230, 230, 0.8);
+        padding: 8px 8px;
+        border-radius: 8px;
+        display: none;
+        z-index: 10;
+      }
     </style>
   </head>
 
@@ -25,243 +43,660 @@
       renderer="logarithmicDepthBuffer: true;"
     >
       <a-marker type="pattern" url="pattern.patt">
-        <a-entity id="group-container" position="0 0 0" scale="0.5 0.5 0.5"></a-entity>
+        <!-- scaleでサイズ変更可能ß -->
+        <a-entity id="group-container" position="0 0 0" scale="0.25 0.25 0.25"></a-entity>
       </a-marker>
 
       <a-entity camera></a-entity>
     </a-scene>
 
+    <div id="secretMessage"></div>
+
     <script>
+
+      class ModelManager {
+        constructor(clock, n) {
+          this.clock = clock;
+          this.n = n;
+          this.currentType = 0;
+          this.transition = null;
+        }
+
+        getCurrentParams() {
+          return getModelParams(this.currentType);
+        }
+
+        requestNext() {
+          if (this.transition) return false;
+
+          const oldType = this.currentType;
+          this.currentType = (this.currentType + 1) % this.n;
+          this.transition = {
+            startTime: this.clock.getElapsedTime(),
+            duration: 1.2,
+            from: getModelParams(oldType),
+            to: getModelParams(this.currentType)
+          };
+          return true;
+        }
+
+        update() {
+          if (!this.transition) {
+            return { from: null, to: this.getCurrentParams(), progress: 1 };
+          }
+          const now = this.clock.getElapsedTime();
+          const p = Math.min((now - this.transition.startTime) / this.transition.duration, 1);
+          if (p >= 1) {
+            const finalParams = this.transition.to;
+            this.transition = null;
+            return { from: null, to: finalParams, progress: 1 };
+          }
+          return { from: this.transition.from, to: this.transition.to, progress: p };
+        }
+      }
+
+      const secretMessages = [
+        "わーいわーい！！✨",
+        "楽しんでくれたかな？",
+        "あっ！",
+        "おふっ！",
+        "ギャーーーー！",
+        "バレた！",
+        "あそばれてる？",
+        "あ、ありがと！",
+        "ペンギンだぜ！",
+        "ぴょこっ！",
+        "見ちゃった？",
+        "どやっ！",
+        "うひょー！",
+        "押したな！？",
+        "びっくりした？",
+        "やっほー！",
+        "ヒャッハー！",
+        "ペンペン！",
+        "すごい！？",
+        "やるやん！",
+        "おおっ！",
+        "ちょっ！？",
+        "にへへ〜",
+        "見ってる〜？",
+        "おぉ〜！？",
+        "ズコーッ",
+        "きゃっ！",
+        "えっへん！",
+        "ふふふ〜ん♪",
+        "おーい！",
+        "わっしょい！",
+        "おぉお！？",
+        "どうもー！",
+        "つかれてきた",
+        "まだまだ！",
+        "おなかすいた",
+        "ひみつだよ！",
+        "耳のようで耳じゃない！",
+        "変わってるねと言われます",
+        "ペンギンダンス！",
+        "チョコ食べたい",
+        "ねむい...",
+        "よっしゃー！",
+        "へへっ！",
+        "ぐるぐる〜",
+        "シャケちょうだい",
+        "見つかっちゃった",
+        "てへぺろ",
+        "よく来たね！",
+        "なかよし！",
+        "うぇーい！",
+        "ムニムニ〜",
+        "ジャンプ！",
+        "ボヨヨーン！",
+        "ドヤ顔",
+        "ウケる〜",
+        "いえーい！",
+        "ガオーッ！？",
+        "くすぐったい！",
+        "タッチしたね？",
+        "ぬるっと登場",
+        "うまくできた？",
+        "楽しめたかい？",
+        "すべっちゃった",
+        "冷たいもの大好き！",
+        "きみもやる？",
+        "モフモフ〜",
+        "氷ください！",
+        "ぐで〜ん",
+        "ふわふわ〜",
+        "なにそれ！？",
+        "おなかポン！",
+        "水浴びしたい〜",
+        "ここどこ？",
+        "フリーダム！",
+        "すきかも！",
+        "スケート得意！",
+        "つるんっ",
+        "ひゃっこい！",
+        "ぼく小さい？",
+        "シャキーン！",
+        "ぴよぴよ？",
+        "とりあえずタップ",
+        "しゃらんら〜",
+        "ごめんごめん",
+        "ぴったんこ",
+        "ほらね！",
+        "まじか！？",
+        "アハハ！",
+        "いまの見た？",
+        "グルグル〜",
+        "はしゃぎすぎた",
+        "もう1回！",
+        "パタパタ〜",
+        "すーいすい",
+        "つんつん",
+        "きゅるるん",
+        "おさかな〜🐟",
+        "もっふん",
+        "びよーん",
+        "やるぅ！",
+        "わはは！",
+      ];
+
+      // モデル種類
+      const ModelType = {
+        DEFAULT: 0, // デフォルト
+        M: 1        // Mさん制作
+      };
+
+      // ジャンプパターン
+      const JumpPattern = {
+        NONE: 0,       // ジャンプしない
+        SIMPLE: 1,     // シンプル
+        FLAPPING: 2,   // 足をばたつかせる
+        FLAPPING_K: 3  // 足をばたつかせる（Kバージョン）
+      };
+
+      // 隠し文字の表示場所
+      const SecretMessageArea = {
+        NONE: 0,       // 上に隠しメッセージ
+        SIGNBOARD: 1,  // 看板
+        TOP: 2         // 画面上部
+      };
+
+      let modelType = ModelType.DEFAULT;
+      const jumpPattern = JumpPattern.FLAPPING;
+      const secretMessageArea = SecretMessageArea.SIGNBOARD;
+
+      const clock = new THREE.Clock();
+      const modelTypeMax = Object.keys(ModelType).length; // モデルの総数
+      const modelManager = new ModelManager(clock, modelTypeMax);
+
       /**
- * 指定テキストのキャンバステクスチャを作成し、看板用のマテリアルに使用する
- * @param {string} text - 看板に表示するテキスト
- * @returns {THREE.CanvasTexture} キャンバスから生成したテクスチャ
- */
-function createSignTexture(text) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 600;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
+       * 指定テキストのキャンバステクスチャを作成し、看板用のマテリアルに使用する
+       * @param {string} text - 看板に表示するテキスト
+       * @returns {THREE.CanvasTexture} キャンバスから生成したテクスチャ
+       */
+      function createSignTexture(text) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
 
-  // 背景色 - 薄いクリーム色
-  ctx.fillStyle = '#fff8dc';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 背景色 - 薄いクリーム色
+        ctx.fillStyle = '#fff8dc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 文字スタイル設定（メイリオ・ボールド・48px）
-  ctx.font = 'bold 48px "メイリオ", sans-serif';
-  ctx.fillStyle = '#222222'; // 文字色（濃いグレー）
-  ctx.textBaseline = 'middle';
+        // 文字スタイル設定（メイリオ・ボールド・48px）
+        ctx.font = 'bold 48px "メイリオ", sans-serif';
+        ctx.fillStyle = '#222222'; // 文字色（濃いグレー）
+        ctx.textBaseline = 'middle';
 
-  const paddingX = 40;
-  const x = paddingX + (canvas.width - paddingX * 2) / 2;
+        const paddingX = 40;
+        const x = paddingX + (canvas.width - paddingX * 2) / 2;
 
-  ctx.textAlign = 'center';
-  ctx.fillText(text, x, canvas.height / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(text, x, canvas.height / 2);
 
-  // CanvasTexture化してThree.jsで利用可能にする
-  return new THREE.CanvasTexture(canvas);
-}
+        // CanvasTexture化してThree.jsで利用可能にする
+        return new THREE.CanvasTexture(canvas);
+      }
 
-/**
- * ペンギンの両足をまとめて生成します。
- *
- * @param {THREE.BufferGeometry} geometry - 円錐ジオメトリ（指の形）
- * @param {THREE.Material} material - オレンジ色マテリアル
- * @param {number} spreadX - 足の横方向の開き距離（±で振り分け）
- * @returns {THREE.Group} 両足（左・右）を含んだグループ
- */
- function createFeet(geometry, material, spreadX = 0.4) {
-  const group = new THREE.Group();
+      function updateSignText() {
+        const ramdomIndex = Math.floor(Math.random() * secretMessages.length);
+        const randomSignText = secretMessages[ramdomIndex];
 
-  // 円錐の高さと底面半径を取得（geometry.parametersにあるはず）
-  const { radius, height } = geometry.parameters;
+        const newTexture = createSignTexture(randomSignText);
+        newTexture.needsUpdate = true; // 明示的な更新を促す
+        sign.material.map = newTexture;
+        sign.material.needsUpdate = true; // マテリアル更新も明示
+      }
 
-  // 円錐の母線角度（r/hのアークタンジェント）
-  const slopeAngle = Math.atan(radius / height);
+      function createHitbox() {
+        const hitboxMat = new THREE.MeshBasicMaterial({ visible: false }); // 見えないマテリアル
+        /*const hitboxMat = new THREE.MeshBasicMaterial({
+            color: 0xff0000, // 赤色で可視化
+            wireframe: true, // ワイヤーフレーム表示
+            transparent: true,
+            opacity: 0.5     // 半透明
+        });
+        */
 
-  const positions = [
-    { baseX: -spreadX }, // 左足
-    { baseX: spreadX }  // 右足
-  ];
+        // unit ボックス（後で scale で合わせる）
+        const hitbox = new THREE.Mesh(new THREE.BoxGeometry(3,5.2,3), hitboxMat);
+        return hitbox;
+      }
 
-  for (const { baseX } of positions) {
-    const footGroup = new THREE.Group();
+      /**
+       * ペンギンの両足をまとめて生成します。
+       *
+       * @param {THREE.BufferGeometry} geometry - 円錐ジオメトリ（指の形）
+       * @param {THREE.Material} material - オレンジ色マテリアル
+       * @param {number} spreadX - 足の横方向の開き距離（±で振り分け）
+       * @returns {THREE.Group} 両足（左・右）を含んだグループ
+       */
+      function createFeet(geometry, material, spreadX = 0.4) {
+        const group = new THREE.Group();
 
-    // 中央
-    const center = new THREE.Mesh(geometry, material);
-    center.scale.set(1.0, 2.6, 0.6);
-    center.rotation.x = Math.PI / 2 + Math.atan((radius * center.scale.x) / (height * center.scale.y));
+        // 円錐の高さと底面半径を取得（geometry.parametersにあるはず）
+        const { radius, height } = geometry.parameters;
 
-    footGroup.add(center);
+        // 円錐の母線角度（r/hのアークタンジェント）
+        const slopeAngle = Math.atan(radius / height);
 
-    // 左指
-    const left = center.clone();
-    left.scale.y = 2.2;
-    left.position.x = -0.1;
-    left.rotation.z = 0.25;
-    left.rotation.x = Math.PI / 2 + Math.atan((radius * left.scale.x) / (height * left.scale.y));
-    footGroup.add(left);
+        const positions = [
+          { baseX: -spreadX }, // 左足
+          { baseX: spreadX }  // 右足
+        ];
 
-    // 右指
-    const right = left.clone();
-    right.position.x *= -1;
-    right.rotation.z *= -1;
-    footGroup.add(right);
+        for (const { baseX } of positions) {
+          const footGroup = new THREE.Group();
 
-    footGroup.position.set(baseX, -1.4, 0.4);
-    group.add(footGroup);
-  }
+          // 中央
+          const center = new THREE.Mesh(geometry, material);
+          center.scale.set(1.0, 2.6, 0.6);
+          center.rotation.x = Math.PI / 2 + Math.atan((radius * center.scale.x) / (height * center.scale.y));
 
-  return group;
-}
+          footGroup.add(center);
 
+          // 左指
+          const left = center.clone();
+          left.scale.y = 2.2;
+          left.position.x = -0.1;
+          left.rotation.z = 0.25;
+          left.rotation.x = Math.PI / 2 + Math.atan((radius * left.scale.x) / (height * left.scale.y));
+          footGroup.add(left);
 
-function createEyes(params = {}) {
-  const group = new THREE.Group();
+          // 右指
+          const right = left.clone();
+          right.position.x *= -1;
+          right.rotation.z *= -1;
+          footGroup.add(right);
 
-  // マテリアル類（黒目と白目）
-  const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
-  const scleraMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
-  const irisMat = blackMat;
+          footGroup.position.set(baseX, -1.4, 0.4);
+          group.add(footGroup);
+        }
 
-  // ジオメトリ
-  const eyeBlackGeom = new THREE.SphereGeometry(0.07, 16, 16);
-  const eyeWhiteGeom = new THREE.SphereGeometry(0.03, 16, 16);
-
-  // 右目白目
-  const scleraRight = new THREE.Mesh(eyeBlackGeom, scleraMat);
-  scleraRight.position.set(-0.18, 1.2, 0.55);
-  group.add(scleraRight);
-
-  // 右黒目
-  const irisRight = new THREE.Mesh(eyeBlackGeom, irisMat);
-  irisRight.position.set(-0.18002, 1.201, 0.5508);
-  irisRight.scale.set(0.97, 0.975, 1);
-  group.add(irisRight);
-
-  // 左目白目（右目白目をコピーしてX反転）
-  const scleraLeft = scleraRight.clone();
-  scleraLeft.position.x *= -1;
-  group.add(scleraLeft);
-
-  // 左目黒目（右黒目をコピーしてX反転）
-  const irisLeft = irisRight.clone();
-  irisLeft.position.x *= -1;
-  group.add(irisLeft);
-
-  return group;
-}
+        return group;
+      }
 
 
+      function createEyes(params = {}) {
+        const group = new THREE.Group();
+
+        // マテリアル類（黒目と白目）
+        const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
+        const scleraMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
+        const irisMat = blackMat;
+
+        // ジオメトリ
+        const eyeBlackGeom = new THREE.SphereGeometry(0.07, 16, 16);
+        const eyeWhiteGeom = new THREE.SphereGeometry(0.03, 16, 16);
+
+        // 右目白目
+        const scleraRight = new THREE.Mesh(eyeBlackGeom, scleraMat);
+        scleraRight.position.set(-0.18, 1.2, 0.55);
+        group.add(scleraRight);
+
+        // 右黒目
+        const irisRight = new THREE.Mesh(eyeBlackGeom, irisMat);
+        irisRight.position.set(-0.18002, 1.201, 0.5508);
+        irisRight.scale.set(0.97, 0.975, 1);
+        group.add(irisRight);
+
+        // 左目白目（右目白目をコピーしてX反転）
+        const scleraLeft = scleraRight.clone();
+        scleraLeft.position.x *= -1;
+        group.add(scleraLeft);
+
+        // 左目黒目（右黒目をコピーしてX反転）
+        const irisLeft = irisRight.clone();
+        irisLeft.position.x *= -1;
+        group.add(irisLeft);
+
+        // 目のグループに名前を付けて返す
+        group.scleraRight = scleraRight;
+        group.irisRight   = irisRight;
+        group.scleraLeft  = scleraLeft;
+        group.irisLeft    = irisLeft;
+
+        return group;
+      }
 
 
+      /**
+       * ペンギンの3Dモデルを作成して返す
+       * アニメチックに見えるよう形状・色味・サイズを調整
+       * @returns {THREE.Group} ペンギングループメッシュ
+       */
+      function createPenguin() {
+        const group = new THREE.Group();
 
-/**
- * ペンギンの3Dモデルを作成して返す
- * アニメチックに見えるよう形状・色味・サイズを調整
- * @returns {THREE.Group} ペンギングループメッシュ
- */
-function createPenguin() {
-  const group = new THREE.Group();
+        // マテリアル定義 - 光沢控えめで柔らかいアニメ風
+        const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
+        const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.0 });
+        const orangeMat = new THREE.MeshStandardMaterial({ color: 0xffa500, roughness: 0.5, metalness: 0.1 });
 
-  // マテリアル定義 - 光沢控えめで柔らかいアニメ風
-  const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
-  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.0 });
-  const orangeMat = new THREE.MeshStandardMaterial({ color: 0xffa500, roughness: 0.5, metalness: 0.1 });
+        // 胴体 - 少し縦長の楕円球
+        const bodyGeom = new THREE.SphereGeometry(1, 48, 32);
+        const body = new THREE.Mesh(bodyGeom, blackMat);
+        body.scale.set(1.1, 1.5, 0.9);
+        group.add(body);
+        group.body = body; // 胴体の参照を保持
 
-  // 胴体 - 少し縦長の楕円球
-  const bodyGeom = new THREE.SphereGeometry(1, 48, 32);
-  const body = new THREE.Mesh(bodyGeom, blackMat);
-  body.scale.set(1.1, 1.5, 0.9);
-  group.add(body);
+        // お腹 - 大きくて丸い楕円球（白）
+        const bellyGeom = new THREE.SphereGeometry(0.7, 48, 32);
+        const belly = new THREE.Mesh(bellyGeom, whiteMat);
+        belly.position.set(0, -0.1, 0.45);
+        belly.scale.set(1.0, 1.45, 0.95);
+        group.add(belly);
+        group.belly = belly; // お腹の参照を保持
 
-  // お腹 - 大きくて丸い楕円球（白）
-  const bellyGeom = new THREE.SphereGeometry(0.7, 48, 32);
-  const belly = new THREE.Mesh(bellyGeom, whiteMat);
-  belly.position.set(0, -0.1, 0.45);
-  belly.scale.set(1.0, 1.45, 0.95);
-  group.add(belly);
+        // くちばし - 丸みのある円錐形、前方に配置
+        const beakGeom = new THREE.ConeGeometry(0.13, 0.35, 16);
+        const beak = new THREE.Mesh(beakGeom, orangeMat);
+        beak.position.set(0, 0.95, 0.8);
+        beak.rotation.x = Math.PI / 1.8; // 前向きに回転
+        // 横に扁平化（X方向拡大、Y方向縮小）// 横と奥行きを調整して先端も扁平にする
+        beak.scale.set(2.0, 0.7, 0.9); // X=横幅広げる、Y=縦方向縮める、Z=奥行き縮める
+        group.add(beak);
+        group.beak = beak; // くちばしの参照を保持
 
-  // 頭 - 大きめの黒い球体（非表示になっているが残す）
-  const headGeom = new THREE.SphereGeometry(0.55, 48, 32);
-  const head = new THREE.Mesh(headGeom, blackMat);
-  head.position.set(0, 1.1, 0);
-  // group.add(head); // コメントアウトされている
+        const eyes = createEyes();
+        group.add(eyes);
+        group.eyes = eyes; // 目の参照を保持
 
-  // 顔の白い部分 - 丸く広めの球体（こちらも非表示）
-  const faceGeom = new THREE.SphereGeometry(0.35, 48, 32);
-  const face = new THREE.Mesh(faceGeom, whiteMat);
-  face.position.set(0, 1.15, 0.45);
-  // group.add(face); // コメントアウトされている
+        // 翼 - 丸みがあり太めにして可愛く表現
+        const wingGeom = new THREE.SphereGeometry(0.5, 16, 16);
+        const wingLeft = new THREE.Mesh(wingGeom, blackMat);
+        wingLeft.scale.set(0.5, 1.8, 0.15);
+        wingLeft.position.set(-1.05, 1.3, 0.4);
+        wingLeft.rotation.z = Math.PI / 10;
+        group.add(wingLeft);
 
-  // くちばし - 丸みのある円錐形、前方に配置
-  const beakGeom = new THREE.ConeGeometry(0.13, 0.35, 16);
-  const beak = new THREE.Mesh(beakGeom, orangeMat);
-  beak.position.set(0, 0.95, 0.8);
-  beak.rotation.x = Math.PI / 1.8; // 前向きに回転
-  // 横に扁平化（X方向拡大、Y方向縮小）// 横と奥行きを調整して先端も扁平にする
-  beak.scale.set(2.0, 0.7, 0.9); // X=横幅広げる、Y=縦方向縮める、Z=奥行き縮める
-  group.add(beak);
+        const wingRight = wingLeft.clone();
+        wingRight.position.x = 1.05;
+        wingRight.rotation.z = -Math.PI / 10;
+        group.add(wingRight);
 
-  const eyes = createEyes();
-  group.add(eyes);
-  group.eyes = eyes;
+         // 翼の参照を保持
+        group.wingLeft = wingLeft;
+        group.wingRight = wingRight;
 
-  // 翼 - 丸みがあり太めにして可愛く表現
-  const wingGeom = new THREE.SphereGeometry(0.5, 16, 16);
-  const wingLeft = new THREE.Mesh(wingGeom, blackMat);
-  wingLeft.scale.set(0.5, 1.8, 0.15);
-  wingLeft.position.set(-1.05, 1.3, 0.4);
-  wingLeft.rotation.z = Math.PI / 10;
-  group.add(wingLeft);
+        // 足 - 短くて太い三角錐形、上下逆さまにしてアニメ調に
+        const footGeom = new THREE.ConeGeometry(0.13, 0.35, 16);
 
-  const wingRight = wingLeft.clone();
-  wingRight.position.x = 1.05;
-  wingRight.rotation.z = -Math.PI / 10;
-  group.add(wingRight);
+        const feet = createFeet(footGeom, orangeMat, 0.4); // ← 開き具合は spreadX（±0.4）
+        group.add(feet);
+        group.feet = feet; // 足の参照を保持
 
-  // 足 - 短くて太い三角錐形、上下逆さまにしてアニメ調に
-  const footGeom = new THREE.ConeGeometry(0.13, 0.35, 16);
+        const signTex = createSignTexture("来てくれてありがとね❤️");
+        const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
+        const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
+        sign = new THREE.Mesh(signGeom, signMat);
+        sign.position.set(0, 2.5, 0.48);
+        group.add(sign);
 
-  const feet = createFeet(footGeom, orangeMat, 0.4); // ← 開き具合は spreadX（±0.4）
-  group.add(feet);
+        return group;
+      }
 
-  const signTex = createSignTexture("来てくれてありがとね❤️");
-  const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
-  const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
-  sign = new THREE.Mesh(signGeom, signMat);
-  sign.position.set(0, 2.5, 0.48);
-  group.add(sign);
+      const penguin = createPenguin();
 
+      const signTex = createSignTexture("来てくれてありがとね❤️");
+      const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
+      const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
+      sign = new THREE.Mesh(signGeom, signMat);
+      sign.position.set(0, 2.5, 0.48);
+      penguin.add(sign);
 
-  return group;
-}
+      const hitbox = createHitbox();
+      hitbox.position.set(0, 0.8, 0); // ペンギン中心に合わせる
+      penguin.add(hitbox);
+      penguin.hitbox = hitbox;
 
-      const group = createPenguin();
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const secretDiv = document.getElementById('secretMessage');
+
+      const sceneEl = document.querySelector('a-scene');
+      const markerEl = document.querySelector('a-marker');
+
+      window.addEventListener('pointerdown', (event) => {
+        // レンダラーのキャンバスの位置/サイズで正規化（スクロールやCSS拡大に対応）
+        const canvas = sceneEl.renderer && sceneEl.renderer.domElement ? sceneEl.renderer.domElement : sceneEl.canvas;
+        if (!canvas) return;
+
+        function showSecretMessage() {
+          const msg = secretMessages[Math.floor(Math.random() * secretMessages.length)];
+          secretDiv.textContent = msg;
+          secretDiv.style.display = 'block';
+          setTimeout(() => {
+            secretDiv.style.display = 'none';
+          }, 1000);
+        }
+  
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // 範囲外クリックは無視
+        if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
+
+        pointer.x = (x / rect.width) * 2 - 1;
+        pointer.y = - (y / rect.height) * 2 + 1;
+
+        // マーカーが検出されている（表示されている）場合だけレイを飛ばす
+        // a-marker の object3D.visible は AR.js が on/off しているはず
+        if (!markerEl || !markerEl.object3D || !markerEl.object3D.visible) {
+          // マーカー未検出 → 反応させない
+          return;
+        }
+
+        // レイキャスト実行（camera は sceneEl.camera）
+        raycaster.setFromCamera(pointer, sceneEl.camera);
+        const target = penguin.hitbox || penguin; // hitbox があればそれを使う
+        const intersects = raycaster.intersectObject(target, true);
+
+        if (intersects.length === 0) return;
+
+        // 交差点がカメラの「前方」にあるかチェック
+        const hit = intersects[0];
+        const camPos = new THREE.Vector3();
+        sceneEl.camera.getWorldPosition(camPos);
+        const toPoint = hit.point.clone().sub(camPos);
+        const camDir = new THREE.Vector3();
+        sceneEl.camera.getWorldDirection(camDir);
+
+        // camDir と toPoint の内積が正なら前方
+        if (camDir.dot(toPoint) <= 0) {
+          // 後方のヒット（念のため無視）
+          return;
+        }
+
+        if (modelManager.requestNext()) {
+          if (secretMessageArea === SecretMessageArea.SIGNBOARD) {
+            // 看板のテキスト更新
+            updateSignText();
+          } else if (secretMessageArea === SecretMessageArea.TOP) {
+            // 画面上部に隠しメッセージを表示
+            showSecretMessage();
+          }
+        }
+      });
+
+      function getModelParams(type) {
+        if (type === ModelType.DEFAULT) {
+          return {
+            bodyScale: new THREE.Vector3(1.1, 1.5, 0.9),
+            bellyPos: new THREE.Vector3(0, -0.1, 0.45),
+            bellyScale: new THREE.Vector3(1.0, 1.45, 0.95),
+            beakPos: new THREE.Vector3(0, 0.95, 0.8),
+            beakRotX: Math.PI / 1.8,
+            scleraRightPos: new THREE.Vector3(-0.18, 1.2, 0.55),
+            scleraLeftPos:  new THREE.Vector3( 0.18, 1.2, 0.55),
+            eyeRightPos: new THREE.Vector3(-0.18002, 1.201, 0.5508),
+            eyeLeftPos:  new THREE.Vector3( 0.18002, 1.201, 0.5508),
+            hitboxSize: new THREE.Vector3(1, 1, 1)
+          };
+        } else if (type === ModelType.M) {
+          return {
+            bodyScale: new THREE.Vector3(2.1, 1.5, 1.9),
+            bellyPos: new THREE.Vector3(0, -0.1, 1.45),
+            bellyScale: new THREE.Vector3(2.0, 1.45, 0.95),
+            beakPos: new THREE.Vector3(0, 0.95, 1.6),
+            beakRotX: Math.PI / 1.8 - Math.PI/8,
+            scleraRightPos: new THREE.Vector3(-0.18, 1.1, 0.55+0.8),
+            scleraLeftPos:  new THREE.Vector3( 0.18, 1.1, 0.55+0.8),
+            eyeRightPos: new THREE.Vector3(-0.18002, 1.101, 0.5508+0.8),
+            eyeLeftPos:  new THREE.Vector3( 0.18002, 1.101, 0.5508+0.8),
+            hitboxSize: new THREE.Vector3(1.4, 1, 1.45)
+          };
+        }
+      }
 
       // A-Frameのエンティティにグループを追加
       const entity = document.querySelector('#group-container');
-      entity.object3D.add(group);
+      entity.object3D.add(penguin);
 
       // アニメーション
-      const clock = new THREE.Clock();
       function animate() {
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
+        requestAnimationFrame(animate);
 
-  // グループの移動
-  group.position.x = Math.sin(t * 0.4) * 1.5 + Math.sin(t * 1.8) * 0.25 + Math.sin(t * 3.2) * 0.1;
-  group.position.y = 1.0 + Math.sin(t * 2.0) * 0.06 + Math.sin(t * 5.0) * 0.02;
+        // 時間取得
+        const t = clock.getElapsedTime();
 
-  // 向きベクトルの計算
-  let dx = Math.cos(t * 0.4) + Math.cos(t * 1.8) * 0.2 + Math.cos(t * 3.2) * 0.1;
-  let dz = 1.0; // 基準前方
+        // ペンギン移動（今の時間t）
+        penguin.position.x = Math.sin(t * 0.4) * 1.5 + Math.sin(t * 1.8) * 0.25 + Math.sin(t * 3.2) * 0.1;
 
-  group.rotation.y = Math.atan2(dx, dz);
+        // 今の向きベクトル計算
+        let dx = Math.cos(t * 0.4) + Math.cos(t * 1.8) * 0.2 + Math.cos(t * 3.2) * 0.1;
+        let dz = 1.0; // 基準前方
 
-  // ヨタヨタ揺れ
-  group.rotation.z = Math.sin(t * 4) * 0.04;
-}
+        penguin.rotation.y = Math.atan2(dx, dz);
+
+        // ヨタヨタ揺れ
+        penguin.rotation.z = Math.sin(t * 4) * 0.04;
+
+        if (jumpPattern !== JumpPattern.NONE && penguin.feet) {
+          /// --- ジャンプアニメーション --- ///
+          // 経過時間 t をジャンプサイクル内の進行度 (0〜1) に変換
+          const jumpCycle = 1.2; // 1回のジャンプ時間(秒)
+          const jumpHeight = 2.2; // ジャンプの高さスケール
+          let phase = (t % jumpCycle) / jumpCycle; // 0〜1
+
+          // 0〜1のphaseに応じた放物線: 0と1で0、高さ0.5で最大1
+          let h = 1 - 4 * (phase - 0.5) ** 2;
+
+          // yの位置
+          penguin.position.y = 1 + h * jumpHeight;
+
+          if (jumpPattern === JumpPattern.SIMPLE) { // シンプル
+            // 足全体の上下移動（しゃがむとき足が少し沈む）
+            penguin.feet.position.y = -0.1 + (0.24 * (1 - h)); 
+
+            // 足全体の回転（しゃがむときつま先を少し前に出す）
+            penguin.feet.rotation.x = -0.1 + 0.4 * h; // hが0に近いほど前傾
+          } else if (jumpPattern === JumpPattern.FLAPPING) { // ばたつき
+            // 足全体の上下移動（しゃがむとき足が少し沈む）
+            penguin.feet.position.y = -0.1 + (0.24 * (1 - h)); 
+
+            // 足全体の回転（しゃがむときつま先を少し前に出す）
+            penguin.feet.rotation.x = -0.1 + 0.4 * h; // hが0に近いほど前傾
+
+            // ジャンプのしゃがみ〜伸びの基準姿勢
+            const baseY = -0.1 + 0.24 * (1 - h);
+            const baseRotX = -0.1 + 0.4 * h;
+
+            // 足グループの全体移動だけ共通で適用
+            penguin.feet.position.y = baseY;
+
+            // 空中にいるかどうか
+            const inAir = h > 0.1;
+
+            // 左右の足（createFeetで2つ追加された子グループ）を個別に処理
+            const leftFoot = penguin.feet.children[0];
+            const rightFoot = penguin.feet.children[1];
+
+            // 個別のバタつき (左右で位相をずらす)
+            const flapAmp = 0.15;
+            const flapSpeed = 20; // 高速サイン波
+            const leftFlap  = inAir ? Math.sin(t * flapSpeed) * flapAmp * h : 0;
+            const rightFlap = inAir ? Math.sin(t * flapSpeed + Math.PI/2) * flapAmp * h : 0;
+
+            // 足の回転を適用（基準姿勢＋バタつき）
+            leftFoot.rotation.x  = baseRotX + leftFlap;
+            rightFoot.rotation.x = baseRotX + rightFlap;
+          } else if (jumpPattern === JumpPattern.FLAPPING_K) { // ばたつき（Kバージョン）
+            const feetLeft = penguin.feet.children[0];
+            const feetRight = penguin.feet.children[1];
+
+            feetLeft.rotation.x = Math.sin(t * 4.0) * 0.25;
+            feetRight.rotation.x = Math.sin(t * -4.0) * 0.25;
+          }
+          /// -------------------------- ///
+        } else {
+          penguin.position.y = 1.0 + Math.sin(t * 2.0) * 0.06 + Math.sin(t * 5.0) * 0.02;
+        }
+
+        const { from, to, progress } = modelManager.update();
+
+        if (progress < 1 && from) {
+          penguin.children[0].scale.lerpVectors(from.bodyScale, to.bodyScale, progress);
+
+          const belly = penguin.belly;
+          belly.position.lerpVectors(from.bellyPos, to.bellyPos, progress);
+          belly.scale.lerpVectors(from.bellyScale, to.bellyScale, progress);
+
+          const beak = penguin.beak;
+          beak.position.lerpVectors(from.beakPos, to.beakPos, progress);
+          beak.rotation.x = THREE.MathUtils.lerp(from.beakRotX, to.beakRotX, progress);
+
+          const eyes = penguin.eyes;
+          eyes.irisRight.position.lerpVectors(from.eyeRightPos, to.eyeRightPos, progress);
+          eyes.irisLeft.position.lerpVectors(from.eyeLeftPos, to.eyeLeftPos, progress);
+          eyes.scleraRight.position.lerpVectors(from.scleraRightPos, to.scleraRightPos, progress);
+          eyes.scleraLeft.position.lerpVectors(from.scleraLeftPos, to.scleraLeftPos, progress);
+
+          const hitboxSize = new THREE.Vector3().lerpVectors(from.hitboxSize, to.hitboxSize, progress);
+          // ヒットボックスは penguin の子なので、local scale を直接セットすればOK
+          if (penguin.hitbox) {
+            penguin.hitbox.scale.copy(hitboxSize);
+          }
+        } else {
+          // 通常時
+          const p = to;
+          penguin.children[0].scale.copy(p.bodyScale);
+          const belly = penguin.belly;
+          belly.position.copy(p.bellyPos);
+          belly.scale.copy(p.bellyScale);
+          const beak = penguin.beak;
+          beak.position.copy(p.beakPos);
+          beak.rotation.x = p.beakRotX;
+          const eyes = penguin.eyes;
+          eyes.irisRight.position.copy(p.eyeRightPos);
+          eyes.irisLeft.position.copy(p.eyeLeftPos);
+          eyes.scleraRight.position.copy(p.scleraRightPos);
+          eyes.scleraLeft.position.copy(p.scleraLeftPos);
+
+        }
+      }
 
       animate();
     </script>
