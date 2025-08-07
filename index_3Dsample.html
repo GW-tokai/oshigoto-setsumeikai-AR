@@ -261,12 +261,14 @@ function init() {
   scene.add(penguin);
 
   // 看板生成（テキスト入りテクスチャ使用）
+  /*
   const signTex = createSignTexture("来てくれてありがとね❤️");
   const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
   const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
   sign = new THREE.Mesh(signGeom, signMat);
   sign.position.set(0, 2.5, 0.48);
   penguin.add(sign);
+  */
 
   // 床グリッドヘルパー設置（10m四方、10分割）
   const gridHelper = new THREE.GridHelper(10, 10, 0x666666, 0x999999);
@@ -279,6 +281,40 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 }
+
+//丹羽追加　マウスクリックでメッセージ表示、さらなるクリックで異なるメッセージの表示(検証済み)
+window.addEventListener('click', () => {
+  // 看板生成（テキスト入りテクスチャ使用）
+  const signTex = [
+    createSignTexture("来てくれてありがとね❤️"), 
+    createSignTexture("わーいわーい！！✨"), 
+    createSignTexture("楽しんでくれたかな？")];
+
+  const ramdomIndex = Math.floor(Math.random() * 3);
+  const randomSignTex = signTex[ramdomIndex];
+  const signMat = new THREE.MeshStandardMaterial({map: randomSignTex, side: THREE.DoubleSide});
+  const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
+  sign = new THREE.Mesh(signGeom, signMat);
+  sign.position.set(0, 2.5, 0.48);
+  penguin.add(sign);
+});
+
+//丹羽追加　タップでメッセージ表示、さらなるクリックで異なるメッセージの表示(未検証)
+window.addEventListener('touchstart', () => {
+  // 看板生成（テキスト入りテクスチャ使用）
+  const signTex = [
+    createSignTexture("来てくれてありがとね❤️"), 
+    createSignTexture("わーいわーい！！"), 
+    createSignTexture("楽しんでくれたかな？")];
+
+  const ramdomIndex = Math.floor(Math.random() * 3);
+  const randomSignTex = signTex[ramdomIndex];
+  const signMat = new THREE.MeshStandardMaterial({map: randomSignTex, side: THREE.DoubleSide});
+  const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
+  sign = new THREE.Mesh(signGeom, signMat);
+  sign.position.set(0, 2.5, 0.48);
+  penguin.add(sign);
+});
 
 /**
  * アニメーションループ関数
@@ -298,7 +334,7 @@ function feetMove() {
   const feet = meshArray.children[6];
   const feetLeft = feet.children[0];
   const feetRight = feet.children[1];
-  
+
   feetLeft.rotation.x = Math.sin(t * 4.0) * 0.25;
   feetRight.rotation.x = Math.sin(t * -4.0) * 0.25;
   
