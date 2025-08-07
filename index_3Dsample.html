@@ -27,7 +27,7 @@ let gravity = -0.004;
 let isJumping = false;
 
 init();    // 初期化処理
-feetmove();
+feetMove();
 animate(); // アニメーションループ開始
 
 /**
@@ -282,6 +282,7 @@ function init() {
 
 /**
  * アニメーションループ関数
+ * - ペンギンの足バタバタ
  * - ペンギンの歩行モーション（ヨタヨタ揺れ）
  * - ペンギンの向き調整
  * - 体の左右揺れ（ヨタヨタ感）
@@ -289,15 +290,18 @@ function init() {
  */
 
 //丹羽追加 ペンギンの足をバタバタさせる
-function feetmove() {
-  requestAnimationFrame(feetmove);
+function feetMove() {
+  requestAnimationFrame(feetMove);
   const t = clock.getElapsedTime();
+
   const meshArray = penguin;
   const feet = meshArray.children[6];
   const feetLeft = feet.children[0];
   const feetRight = feet.children[1];
+  
   feetLeft.rotation.x = Math.sin(t * 4.0) * 0.25;
   feetRight.rotation.x = Math.sin(t * -4.0) * 0.25;
+  
   renderer.render(scene, camera);
 }
 
