@@ -17,7 +17,7 @@
         overflow: hidden;
       }
       canvas { display: block; }
-      #secretMessage {
+      #secret-message {
         position: fixed;
         top: 20px;
         left: 50%;
@@ -33,6 +33,22 @@
         display: none;
         z-index: 10;
       }
+      #error-message {
+        display: none;
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ffdddd;
+        color: #a00;
+        padding: 10px 20px;
+        border: 1px solid #a00;
+        border-radius: 5px;
+        font-size: 14px;
+        z-index: 9999;
+        max-width: 80%;
+        text-align: center;
+      }
     </style>
   </head>
 
@@ -41,16 +57,19 @@
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
       renderer="logarithmicDepthBuffer: true;"
+      vr-mode-ui="enabled: false"
     >
       <a-marker type="pattern" url="pattern.patt">
-        <!-- scaleでサイズ変更可能ß -->
+        <!-- scaleでサイズ変更可能 -->
         <a-entity id="group-container" position="0 0 0" scale="0.25 0.25 0.25"></a-entity>
       </a-marker>
 
       <a-entity camera></a-entity>
     </a-scene>
 
-    <div id="secretMessage"></div>
+    <div id="secret-message"></div>
+
+    <div id="error-message"></div>
 
     <script>
 
@@ -229,6 +248,8 @@
       const modelTypeMax = Object.keys(ModelType).length; // モデルの総数
       const modelManager = new ModelManager(clock, modelTypeMax);
 
+      let sign;
+
       /**
        * 指定テキストのキャンバステクスチャを作成し、看板用のマテリアルに使用する
        * @param {string} text - 看板に表示するテキスト
@@ -265,8 +286,10 @@
 
         const newTexture = createSignTexture(randomSignText);
         newTexture.needsUpdate = true; // 明示的な更新を促す
-        sign.material.map = newTexture;
-        sign.material.needsUpdate = true; // マテリアル更新も明示
+
+        const frontMesh = signGroup.frontMesh;
+        frontMesh.material.map = newTexture;
+        frontMesh.material.needsUpdate = true; // マテリアル更新も明示
       }
 
       function createHitbox() {
@@ -336,7 +359,6 @@
 
         return group;
       }
-
 
       function createEyes(params = {}) {
         const group = new THREE.Group();
@@ -453,11 +475,36 @@
       const penguin = createPenguin();
 
       const signTex = createSignTexture("来てくれてありがとね❤️");
-      const signMat = new THREE.MeshStandardMaterial({map: signTex, side: THREE.DoubleSide});
+
+      // 看板表面
+      const frontMat = new THREE.MeshStandardMaterial({
+        map: signTex,
+        side: THREE.FrontSide
+      });
+      // 看板裏面
+      const backMat = new THREE.MeshStandardMaterial({
+        color: 0xffccaa,
+        side: THREE.BackSide
+      });
+
       const signGeom = new THREE.PlaneGeometry(2.5, 1.25);
-      sign = new THREE.Mesh(signGeom, signMat);
-      sign.position.set(0, 2.5, 0.48);
-      penguin.add(sign);
+
+      // メッシュを2つ作成
+      const frontMesh = new THREE.Mesh(signGeom, frontMat);
+      const backMesh = new THREE.Mesh(signGeom, backMat);
+
+      // 裏面メッシュは表面と同じ位置・回転だけど反転
+      backMesh.position.copy(frontMesh.position);
+      backMesh.rotation.copy(frontMesh.rotation);
+
+      // 看板グループに両面追加
+      const signGroup = new THREE.Group();
+      signGroup.add(frontMesh);
+      signGroup.add(backMesh);
+
+      signGroup.position.set(0, 2.5, 0.48);
+      penguin.add(signGroup);
+      signGroup.frontMesh = frontMesh;
 
       const hitbox = createHitbox();
       hitbox.position.set(0, 0.8, 0); // ペンギン中心に合わせる
@@ -466,10 +513,26 @@
 
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
-      const secretDiv = document.getElementById('secretMessage');
+      const secretDiv = document.getElementById('secret-message');
 
       const sceneEl = document.querySelector('a-scene');
       const markerEl = document.querySelector('a-marker');
+
+      const msgEl = document.getElementById('error-message');
+
+      // エラー表示用の関数
+      function displayError(message) {
+        if (!msgEl) return;
+        msgEl.textContent = message;
+        msgEl.style.display = 'block';
+      }
+      window.onerror = function(message, source, lineno, colno, error) {
+        displayError(`Error: ${message} at ${source}:${lineno}:${colno}`);
+        return false;
+      };
+      window.onunhandledrejection = function(event) {
+        displayError(`Promise Rejection: ${event.reason}`);
+      };
 
       window.addEventListener('pointerdown', (event) => {
         // レンダラーのキャンバスの位置/サイズで正規化（スクロールやCSS拡大に対応）
