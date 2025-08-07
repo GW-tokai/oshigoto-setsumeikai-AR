@@ -27,6 +27,7 @@ let gravity = -0.004;
 let isJumping = false;
 
 init();    // 初期化処理
+feetmove();
 animate(); // アニメーションループ開始
 
 /**
@@ -150,9 +151,6 @@ function createEyes(params = {}) {
 }
 
 
-
-
-
 /**
  * ペンギンの3Dモデルを作成して返す
  * アニメチックに見えるよう形状・色味・サイズを調整
@@ -161,7 +159,7 @@ function createEyes(params = {}) {
 function createPenguin() {
   const group = new THREE.Group();
 
-  // マテリアル定義 - 光沢控えめで柔らかいアニメ風
+  // マテリアル定義 - 光沢控えめで柔らかいアニメ風 aaaaa
   const blackMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6, metalness: 0.1 });
   const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.0 });
   const orangeMat = new THREE.MeshStandardMaterial({ color: 0xffa500, roughness: 0.5, metalness: 0.1 });
@@ -290,7 +288,18 @@ function init() {
  * - レンダリング更新
  */
 
-
+//丹羽追加 ペンギンの足をバタバタさせる
+function feetmove() {
+  requestAnimationFrame(feetmove);
+  const t = clock.getElapsedTime();
+  const meshArray = penguin;
+  const feet = meshArray.children[6];
+  const feetLeft = feet.children[0];
+  const feetRight = feet.children[1];
+  feetLeft.rotation.x = Math.sin(t * 4.0) * 0.25;
+  feetRight.rotation.x = Math.sin(t * -4.0) * 0.25;
+  renderer.render(scene, camera);
+}
 
 function animate() {
   requestAnimationFrame(animate);
